@@ -11,6 +11,7 @@ import {
   doc,
 } from "firebase/firestore";
 import imageCompression from "browser-image-compression";
+import { parse as parseExif } from "exifr";
 import "./App.css";
 
 // Boleh dipindah ke .env (VITE_IMGBB_KEY) kalau mau lebih rapi.
@@ -45,6 +46,33 @@ function Photo({ url, width, alt, className, onLoad, ...rest }) {
       onError={() => setStage((s) => Math.min(s + 1, 1))}
     />
   );
+}
+
+// true  = foto terbaru di atas
+// false = urut sesuai waktu foto diambil (pagi -> malam)
+const NEWEST_FIRST = false;
+
+const toMillis = (v) =>
+  v && typeof v.toMillis === "function"
+    ? v.toMillis()
+    : typeof v === "number"
+    ? v
+    : Date.now();
+
+// Waktu foto = takenAt (dari EXIF). Foto tanpa takenAt memakai waktu unggah.
+const photoTime = (img) => img.takenAt ?? toMillis(img.createdAt);
+
+// Baca tanggal pengambilan dari file ASLI (sebelum dikompres, karena
+// kompresi membuang EXIF). Cadangan: tanggal file.
+async function readTakenAt(file) {
+  try {
+    const exif = await parseExif(file, ["DateTimeOriginal", "CreateDate"]);
+    const d = exif?.DateTimeOriginal || exif?.CreateDate;
+    if (d instanceof Date && !Number.isNaN(d.getTime())) return d.getTime();
+  } catch {
+    // abaikan, pakai cadangan
+  }
+  return file.lastModified || Date.now();
 }
 
 const SKELETON_RATIOS = [1.3, 0.8, 1, 1.45, 0.9, 1.2, 0.75, 1.1];
@@ -97,7 +125,11 @@ function App() {
     const unsubscribe = onSnapshot(
       q,
       (snapshot) => {
-        setImages(snapshot.docs.map((d) => ({ id: d.id, ...d.data() })));
+        const list = snapshot.docs.map((d) => ({ id: d.id, ...d.data() }));
+        list.sort((a, b) =>
+          NEWEST_FIRST ? photoTime(b) - photoTime(a) : photoTime(a) - photoTime(b)
+        );
+        setImages(list);
         setLoading(false);
       },
       () => setLoading(false)
@@ -116,6 +148,7 @@ function App() {
 
     for (const file of files) {
       try {
+        const takenAt = await readTakenAt(file);
         const compressed = await imageCompression(file, {
           maxSizeMB: 0.5,
           maxWidthOrHeight: 1080,
@@ -133,6 +166,8 @@ function App() {
 
         await addDoc(collection(db, "gallery"), {
           imageUrl: data.data.url,
+          deleteUrl: data.data.delete_url || null,
+          takenAt,
           createdAt: serverTimestamp(),
         });
       } catch {
@@ -262,13 +297,13 @@ function App() {
               type="button"
               className="arch"
               onClick={() => setViewIndex(0)}
-              aria-label="Buka foto terbaru"
+              aria-label="Buka foto sampul"
             >
               <Photo
                 key={cover.id}
                 url={cover.imageUrl}
                 width={800}
-                alt="Foto terbaru"
+                alt="Foto sampul"
               />
             </button>
           ) : (
