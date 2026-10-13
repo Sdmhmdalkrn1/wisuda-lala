@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect } from "react";
 import { db } from "./firebase";
 import { collection, addDoc, onSnapshot, query, orderBy, serverTimestamp, deleteDoc, doc } from "firebase/firestore";
 import imageCompression from "browser-image-compression";
@@ -8,18 +8,6 @@ function App() {
   const [images, setImages] = useState([]);
   const [uploading, setUploading] = useState(false);
   const [selectedImg, setSelectedImg] = useState(null);
-  const [isPlaying, setIsPlaying] = useState(false);
-  const audioRef = useRef(null);
-
-  // Fungsi Play/Pause Musik
-  const toggleMusic = () => {
-    if (isPlaying) {
-      audioRef.current.pause();
-    } else {
-      audioRef.current.play();
-    }
-    setIsPlaying(!isPlaying);
-  };
 
   useEffect(() => {
     const q = query(collection(db, "gallery"), orderBy("createdAt", "desc"));
@@ -68,6 +56,7 @@ function App() {
   const handleDelete = async (id, e) => {
     e.stopPropagation();
     const confirmDelete = window.confirm("Yakin mau hapus kenangan ini? 🥺");
+    
     if (confirmDelete) {
       try {
         await deleteDoc(doc(db, "gallery", id));
@@ -79,23 +68,9 @@ function App() {
 
   return (
     <div className="app-container">
-      {/* Tombol Pemutar Musik Melayang */}
-      <button className={`music-player ${isPlaying ? 'playing' : ''}`} onClick={toggleMusic}>
-        {isPlaying ? '🎵 Musik On' : '🔇 Play Musik'}
-        {/* Menggunakan lagu lofi romantis bebas hak cipta sebagai contoh */}
-        <audio ref={audioRef} loop src="https://cdn.pixabay.com/download/audio/2022/05/16/audio_1808fbf07a.mp3" hidden />
-      </button>
-
       <div className="glass-header">
         <h1>🎓 Wisuda Lala ✨</h1>
-        
-        {/* Kartu Ucapan Manis */}
-        <div className="greeting-card">
-          <p>
-            "Selamat wisuda, Sayang! 💖 Segala lelah, revisian, dan perjuanganmu akhirnya terbayar lunas. 
-            Aku bangga banget sama kamu. Website ini khusus buat nyimpen semua kenangan manis kita di hari spesialmu."
-          </p>
-        </div>
+        <p>Koleksi memori manis kita</p>
         
         <label className="upload-btn">
           {uploading ? "Menyimpan memori... ⏳" : "📸 Tambah Foto"}
@@ -107,7 +82,10 @@ function App() {
         {images.map((img) => (
           <div key={img.id} className="masonry-item" onClick={() => setSelectedImg(img.imageUrl)}>
             <img src={img.imageUrl} alt="Kenangan" loading="lazy" />
-            <button className="delete-btn" onClick={(e) => handleDelete(img.id, e)}>🗑️</button>
+            
+            <button className="delete-btn" onClick={(e) => handleDelete(img.id, e)}>
+              🗑️
+            </button>
           </div>
         ))}
       </div>
@@ -118,11 +96,6 @@ function App() {
           <img src={selectedImg} alt="Zoomed" className="lightbox-img" />
         </div>
       )}
-
-      {/* Footer Romantis */}
-      <footer className="footer">
-        Dibuat dengan seluruh 💖 untuk Lala
-      </footer>
     </div>
   );
 }
