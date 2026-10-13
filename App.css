@@ -1,0 +1,146 @@
+/* Pengaturan Dasar Mobile-First */
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  -webkit-tap-highlight-color: transparent; /* Hilangkan kotak biru saat tombol ditekan di Android */
+}
+
+body {
+  font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  background: linear-gradient(135deg, #fdfbfb 0%, #ebedee 100%); /* Warna premium minimalis ala Apple */
+  background-attachment: fixed;
+  min-height: 100vh;
+  padding: 15px;
+}
+
+.app-container {
+  max-width: 1000px;
+  margin: 0 auto;
+}
+
+/* Header Efek Kaca (Glassmorphism) */
+.glass-header {
+  background: rgba(255, 255, 255, 0.4);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.5);
+  border-radius: 20px;
+  padding: 25px 15px;
+  text-align: center;
+  margin-bottom: 25px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.05);
+}
+
+.glass-header h1 {
+  font-size: 1.8rem;
+  color: #2c3e50;
+  margin-bottom: 5px;
+  font-weight: 700;
+}
+
+.glass-header p {
+  color: #7f8c8d;
+  font-size: 0.9rem;
+  margin-bottom: 20px;
+}
+
+/* Tombol Upload Elegan */
+.upload-btn {
+  display: inline-block;
+  background: rgba(255, 255, 255, 0.8);
+  color: #2c3e50;
+  padding: 12px 24px;
+  border-radius: 50px;
+  font-weight: 600;
+  font-size: 0.95rem;
+  cursor: pointer;
+  box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+  transition: transform 0.2s ease;
+}
+
+.upload-btn:active {
+  transform: scale(0.95); /* Efek tombol tertekan */
+}
+
+/* Susunan Galeri Masonry untuk HP (2 Kolom) */
+.masonry-grid {
+  column-count: 2;
+  column-gap: 10px;
+}
+
+.masonry-item {
+  break-inside: avoid;
+  margin-bottom: 10px;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.05);
+  animation: fadeUp 0.6s ease forwards;
+}
+
+.masonry-item img {
+  width: 100%;
+  display: block;
+  border-radius: 12px;
+}
+
+/* Lightbox (Zoom Layar Penuh) */
+.lightbox {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(0, 0, 0, 0.85);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 9999;
+  padding: 15px;
+  animation: fadeIn 0.3s ease;
+}
+
+.lightbox-img {
+  max-width: 100%;
+  max-height: 90vh;
+  border-radius: 12px;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+  animation: popIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.close-btn {
+  position: absolute;
+  top: 15px;
+  right: 25px;
+  font-size: 40px;
+  color: white;
+}
+
+/* Kumpulan Animasi Halus */
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes popIn {
+  from { transform: scale(0.8); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
+}
+
+/* Responsif Jika Dibuka di Tablet / Laptop */
+@media (min-width: 768px) {
+  .masonry-grid {
+    column-count: 3;
+    column-gap: 15px;
+  }
+  .masonry-item {
+    margin-bottom: 15px;
+  }
+}
