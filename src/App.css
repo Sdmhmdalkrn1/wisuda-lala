@@ -210,7 +210,12 @@ button {
   border-radius: 8px;
   overflow: hidden;
   background: var(--blush-soft);
+  min-height: 140px;
   cursor: zoom-in;
+}
+
+.tile:not(.is-loaded) {
+  min-height: 200px;
 }
 
 .tile img {

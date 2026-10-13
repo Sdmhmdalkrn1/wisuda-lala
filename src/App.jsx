@@ -17,6 +17,36 @@ import "./App.css";
 const IMGBB_API_KEY =
   import.meta.env.VITE_IMGBB_KEY || "d2975f87630c09664c72c8f0347931c4";
 
+// Gambar dimuat lewat proxy dulu (wsrv.nl). Kalau gagal / lambat >7 detik,
+// otomatis pakai link ImgBB langsung.
+const proxied = (url, w) =>
+  `https://wsrv.nl/?url=${encodeURIComponent(url)}&w=${w}&output=webp&q=82`;
+
+function Photo({ url, width, alt, className, onLoad, ...rest }) {
+  const [stage, setStage] = useState(0); // 0 = proxy, 1 = link asli
+  const [done, setDone] = useState(false);
+
+  useEffect(() => {
+    if (done || stage !== 0) return;
+    const t = setTimeout(() => setStage(1), 7000);
+    return () => clearTimeout(t);
+  }, [done, stage]);
+
+  return (
+    <img
+      {...rest}
+      src={stage === 0 ? proxied(url, width) : url}
+      alt={alt}
+      className={className}
+      onLoad={() => {
+        setDone(true);
+        onLoad && onLoad();
+      }}
+      onError={() => setStage((s) => Math.min(s + 1, 1))}
+    />
+  );
+}
+
 const SKELETON_RATIOS = [1.3, 0.8, 1, 1.45, 0.9, 1.2, 0.75, 1.1];
 
 function GalleryItem({ img, index, onOpen, onDelete }) {
@@ -26,8 +56,9 @@ function GalleryItem({ img, index, onOpen, onDelete }) {
       className={`tile ${loaded ? "is-loaded" : ""}`}
       onClick={() => onOpen(index)}
     >
-      <img
-        src={img.imageUrl}
+      <Photo
+        url={img.imageUrl}
+        width={700}
         alt={`Foto wisuda ${index + 1}`}
         loading="lazy"
         onLoad={() => setLoaded(true)}
@@ -233,7 +264,12 @@ function App() {
               onClick={() => setViewIndex(0)}
               aria-label="Buka foto terbaru"
             >
-              <img src={cover.imageUrl} alt="Foto terbaru" />
+              <Photo
+                key={cover.id}
+                url={cover.imageUrl}
+                width={800}
+                alt="Foto terbaru"
+              />
             </button>
           ) : (
             <div className={`arch arch-empty ${loading ? "shimmer" : ""}`} />
@@ -344,9 +380,10 @@ function App() {
             </>
           )}
 
-          <img
+          <Photo
             key={images[viewIndex].id}
-            src={images[viewIndex].imageUrl}
+            url={images[viewIndex].imageUrl}
+            width={1600}
             alt={`Foto ${viewIndex + 1} dari ${images.length}`}
             className="lb-img"
             onClick={(e) => e.stopPropagation()}
