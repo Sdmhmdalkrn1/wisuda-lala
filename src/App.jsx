@@ -350,8 +350,8 @@ function Gallery() {
     <div className="page">
       <header className="hero">
         <div className="hero-text">
-          <h1 className="hero-title">Wisuda<br />Lala</h1>
-          <p className="hero-sub">Kumpulan foto hari wisuda, disimpan di satu tempat.</p>
+          <h1 className="hero-title">Untuk<br />Lala,</h1>
+          <p className="hero-sub">Sebuah ruang kecil untuk momen bahagiamu, agar ceritanya tidak pernah pudar. Tentang lelah yang akhirnya terbayar lunas, dan kamu yang bersinar paling terang hari itu.</p>
           {daysSinceWisuda() >= 0 && (
             <p className="hero-days">
               {daysSinceWisuda() === 0 ? "Hari ini hari wisuda" : `${daysSinceWisuda()} hari sejak wisuda`}
