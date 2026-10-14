@@ -6,6 +6,7 @@ import {
 } from "firebase/firestore";
 import imageCompression from "browser-image-compression";
 import { parse as parseExif } from "exifr";
+import Extras, { Admin, daysSinceWisuda } from "./Extras.jsx";
 import "./App.css";
 
 const IMGBB_API_KEY =
@@ -13,9 +14,6 @@ const IMGBB_API_KEY =
 
 // true = foto terbaru di atas; false = urut waktu foto diambil (pagi -> malam)
 const NEWEST_FIRST = false;
-
-const DEFAULT_LETTER =
-  "Surat ini belum diisi. Ubah lewat Firestore: koleksi settings, dokumen letter, kolom text (opsional: title).";
 
 const toMillis = (v) =>
   v && typeof v.toMillis === "function" ? v.toMillis() : typeof v === "number" ? v : Date.now();
@@ -108,7 +106,7 @@ function GalleryItem({ img, index, onOpen, onDelete }) {
   );
 }
 
-function App() {
+function Gallery() {
   const [images, setImages] = useState([]);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
@@ -277,6 +275,19 @@ function App() {
     } catch { /* dibatalkan */ }
   };
 
+  const lastTap = useRef(0);
+  const [burst, setBurst] = useState(false);
+  const onPhotoTap = (e) => {
+    e.stopPropagation();
+    const now = Date.now();
+    if (now - lastTap.current < 320) {
+      lastTap.current = 0;
+      if (!current.favorite) toggleFav();
+      setBurst(true);
+      setTimeout(() => setBurst(false), 750);
+    } else lastTap.current = now;
+  };
+
   const openCover = () => {
     setFilter("all");
     setViewIndex(images.findIndex((i) => i.id === cover.id));
@@ -290,6 +301,11 @@ function App() {
         <div className="hero-text">
           <h1 className="hero-title">Wisuda<br />Lala</h1>
           <p className="hero-sub">Kumpulan foto hari wisuda, disimpan di satu tempat.</p>
+          {daysSinceWisuda() >= 0 && (
+            <p className="hero-days">
+              {daysSinceWisuda() === 0 ? "Hari ini hari wisuda" : `${daysSinceWisuda()} hari sejak wisuda`}
+            </p>
+          )}
           <div className="hero-meta">
             <div className="count">
               <span className="count-num">{loading ? "–" : images.length}</span>
@@ -317,10 +333,7 @@ function App() {
         </div>
       </header>
 
-      <section className="letter">
-        <span className="letter-label">{letter?.title || "Sebuah surat"}</span>
-        <p className="letter-text">{letter?.text || DEFAULT_LETTER}</p>
-      </section>
+      <Extras letter={letter} />
 
       <main>
         {!loading && images.length > 0 && (
@@ -373,7 +386,8 @@ function App() {
           <div className="lb-stage">
             <Photo key={current.id} url={current.imageUrl} width={1600}
               alt={`Foto ${viewIndex + 1} dari ${visible.length}`} className="lb-img"
-              onClick={(e) => e.stopPropagation()} />
+              onClick={onPhotoTap} />
+            {burst && <span className="lb-burst"><Icon name="heart" size={96} fill="currentColor" /></span>}
           </div>
 
           <div className="lb-panel" onClick={(e) => e.stopPropagation()}>
@@ -414,4 +428,7 @@ function App() {
   );
 }
 
-export default App;
+export default function App() {
+  const isAdmin = new URLSearchParams(window.location.search).has("admin");
+  return isAdmin ? <Admin /> : <Gallery />;
+}
