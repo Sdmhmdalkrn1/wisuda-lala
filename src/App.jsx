@@ -63,6 +63,8 @@ const ICONS = {
   close: "M6 6l12 12M18 6L6 18",
   prev: "M15 5l-7 7 7 7",
   next: "M9 5l7 7-7 7",
+  play: "M8 5l11 7-11 7z",
+  pause: "M9 5v14M15 5v14",
 };
 function Icon({ name, size = 20, fill = "none" }) {
   return (
@@ -91,12 +93,16 @@ function Photo({ url, width, alt, className, onLoad, ...rest }) {
 
 const SKELETON_RATIOS = [1.3, 0.8, 1, 1.45, 0.9, 1.2, 0.75, 1.1];
 
-function GalleryItem({ img, index, onOpen, onDelete }) {
+function GalleryItem({ img, index, onOpen, onDelete, selecting, selected, onToggle }) {
   const [loaded, setLoaded] = useState(false);
   return (
-    <figure className={`tile ${loaded ? "is-loaded" : ""}`} onClick={() => onOpen(index)}>
+    <figure
+      className={`tile ${loaded ? "is-loaded" : ""} ${selected ? "is-selected" : ""}`}
+      onClick={() => (selecting ? onToggle(img.id) : onOpen(index))}
+    >
       <Photo url={img.imageUrl} width={700} alt={`Foto wisuda ${index + 1}`}
         loading="lazy" onLoad={() => setLoaded(true)} />
+      {selecting && <span className="tile-check">{selected ? "✓" : ""}</span>}
       {img.favorite && <span className="tile-fav"><Icon name="heart" size={14} fill="currentColor" /></span>}
       <button type="button" className="tile-delete" aria-label="Hapus foto"
         onClick={(e) => onDelete(img.id, e)}>
@@ -275,6 +281,51 @@ function Gallery() {
     } catch { /* dibatalkan */ }
   };
 
+  const [playing, setPlaying] = useState(false);
+  const [selecting, setSelecting] = useState(false);
+  const [selectedIds, setSelectedIds] = useState([]);
+  const [zip, setZip] = useState(null);
+
+  const startSlideshow = () => {
+    if (!visible.length) return;
+    setViewIndex(0);
+    setPlaying(true);
+  };
+  useEffect(() => { if (viewIndex === null) setPlaying(false); }, [viewIndex]);
+  useEffect(() => {
+    if (!playing || viewIndex === null || editing) return;
+    const t = setTimeout(next, 4500);
+    return () => clearTimeout(t);
+  }, [playing, viewIndex, editing, next]);
+
+  const toggleSelect = (id) =>
+    setSelectedIds((ids) => (ids.includes(id) ? ids.filter((x) => x !== id) : [...ids, id]));
+
+  const downloadZip = async () => {
+    const chosen = visible.filter((i) => selectedIds.includes(i.id));
+    if (!chosen.length || zip) return;
+    setZip({ done: 0, total: chosen.length });
+    try {
+      const { default: JSZip } = await import("jszip");
+      const z = new JSZip();
+      for (let i = 0; i < chosen.length; i++) {
+        const blob = await fetchBlob(chosen[i].imageUrl);
+        const ext = (blob.type.split("/")[1] || "jpg").replace("jpeg", "jpg");
+        z.file(`foto-${String(i + 1).padStart(2, "0")}.${ext}`, blob);
+        setZip({ done: i + 1, total: chosen.length });
+      }
+      const out = await z.generateAsync({ type: "blob" });
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(out);
+      a.download = "wisuda-lala.zip";
+      a.click();
+      setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+      setSelecting(false);
+      setSelectedIds([]);
+    } catch { flash("Gagal membuat ZIP, coba lagi"); }
+    setZip(null);
+  };
+
   const lastTap = useRef(0);
   const [burst, setBurst] = useState(false);
   const onPhotoTap = (e) => {
@@ -346,6 +397,13 @@ function Gallery() {
               className={filter === "fav" ? "is-on" : ""} onClick={() => setFilter("fav")}>
               Favorit <span>{favCount}</span>
             </button>
+            <span className="tabs-tools">
+              <button type="button" onClick={startSlideshow} disabled={!visible.length}>Slideshow</button>
+              <button type="button" className={selecting ? "is-on" : ""}
+                onClick={() => { setSelecting((v) => !v); setSelectedIds([]); }}>
+                {selecting ? "Selesai" : "Pilih"}
+              </button>
+            </span>
           </div>
         )}
         {loading ? (
@@ -360,9 +418,10 @@ function Gallery() {
             <p>{filter === "fav" ? "Ketuk ikon hati di foto untuk menandainya." : "Tekan “Tambah foto” untuk mengunggah foto pertama."}</p>
           </div>
         ) : (
-          <div className="grid">
+          <div className={`grid ${selecting ? "is-selecting" : ""}`}>
             {visible.map((img, i) => (
-              <GalleryItem key={img.id} img={img} index={i} onOpen={setViewIndex} onDelete={handleDelete} />
+              <GalleryItem key={img.id} img={img} index={i} onOpen={setViewIndex} onDelete={handleDelete}
+                selecting={selecting} selected={selectedIds.includes(img.id)} onToggle={toggleSelect} />
             ))}
           </div>
         )}
@@ -373,6 +432,10 @@ function Gallery() {
           onClick={close} onTouchStart={onTouchStart} onTouchEnd={onTouchEnd}>
           <button type="button" className="lb-btn lb-close" aria-label="Tutup" onClick={close}>
             <Icon name="close" size={22} />
+          </button>
+          <button type="button" className="lb-btn lb-play" aria-label={playing ? "Jeda slideshow" : "Putar slideshow"}
+            onClick={(e) => { e.stopPropagation(); setPlaying((p) => !p); }}>
+            <Icon name={playing ? "pause" : "play"} size={20} />
           </button>
           {visible.length > 1 && (
             <>
@@ -420,6 +483,16 @@ function Gallery() {
             </div>
           </div>
           <div className="lb-counter">{viewIndex + 1} / {visible.length}</div>
+        </div>
+      )}
+
+      {selecting && (
+        <div className="selbar">
+          <span>{zip ? `Menyiapkan ${zip.done}/${zip.total}…` : `${selectedIds.length} dipilih`}</span>
+          <button type="button" onClick={() => setSelectedIds(visible.map((i) => i.id))}>Semua</button>
+          <button type="button" className="is-primary" disabled={!selectedIds.length || !!zip} onClick={downloadZip}>
+            Unduh ZIP
+          </button>
         </div>
       )}
 
