@@ -31,6 +31,16 @@ async function readTakenAt(file) {
   return file.lastModified || Date.now();
 }
 
+// Sidik jari file asli (SHA-256) untuk mendeteksi unggahan ganda.
+async function hashFile(file) {
+  try {
+    const digest = await crypto.subtle.digest("SHA-256", await file.arrayBuffer());
+    return Array.from(new Uint8Array(digest)).map((b) => b.toString(16).padStart(2, "0")).join("");
+  } catch {
+    return `${file.name}-${file.size}-${file.lastModified}`;
+  }
+}
+
 // Gambar lewat proxy dulu; kalau gagal/lambat >7 dtk pakai link ImgBB asli.
 const proxied = (url, w) =>
   `https://wsrv.nl/?url=${encodeURIComponent(url)}${w ? `&w=${w}&output=webp&q=82` : ""}`;
@@ -141,8 +151,16 @@ function App() {
     setUploading(true);
     setProgress({ done: 0, total: files.length });
     let failed = 0;
+    const skipped = [];
+    const known = new Set(images.map((i) => i.hash).filter(Boolean));
     for (const file of files) {
       try {
+        const hash = await hashFile(file);
+        if (known.has(hash)) {
+          skipped.push(file.name);
+          setProgress((p) => ({ ...p, done: p.done + 1 }));
+          continue;
+        }
         const takenAt = await readTakenAt(file);
         const compressed = await imageCompression(file, {
           maxSizeMB: 0.5, maxWidthOrHeight: 1080, useWebWorker: true,
@@ -157,13 +175,21 @@ function App() {
           imageUrl: data.data.url,
           deleteUrl: data.data.delete_url || null,
           takenAt,
+          hash,
           createdAt: serverTimestamp(),
         });
+        known.add(hash);
       } catch { failed += 1; }
       setProgress((p) => ({ ...p, done: p.done + 1 }));
     }
     setUploading(false);
-    if (failed > 0) alert(`${failed} foto gagal diunggah. Coba unggah lagi ya.`);
+    const notes = [];
+    if (skipped.length > 0) {
+      const names = skipped.slice(0, 5).join(", ") + (skipped.length > 5 ? ", …" : "");
+      notes.push(`${skipped.length} foto dilewati karena sudah ada di galeri: ${names}`);
+    }
+    if (failed > 0) notes.push(`${failed} foto gagal diunggah. Coba unggah lagi ya.`);
+    if (notes.length > 0) alert(notes.join("\n\n"));
   };
 
   const handleDelete = async (id, e) => {
